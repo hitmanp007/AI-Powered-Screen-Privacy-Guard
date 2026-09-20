@@ -77,8 +77,8 @@ REASON_ABSENT = "USER_ABSENT"
 
 OVERLAY_TEXT = {
     REASON_UNKNOWN: ("PRIVACY RISK DETECTED",
-                     "Potential unauthorized viewer detected.",
-                     "Your screen has been protected."),
+                    "Potential unauthorized viewer detected.",
+                    "Your screen has been protected."),
     REASON_ABSENT: ("USER ABSENT - SCREEN LOCKED",
                     "The authorized user has left the camera view.",
                     "The screen unlocks when you return."),
