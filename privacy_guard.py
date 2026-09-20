@@ -22,6 +22,7 @@ import ctypes
 import tkinter as tk
 
 import cv2
+from telegram_alert import send_telegram_alert
 
 # =====================================================================
 # CONFIGURATION  (edit these)
@@ -358,6 +359,9 @@ def draw_ui(frame, people, tracker, now):
 # =====================================================================
 # Main
 # =====================================================================
+# =====================================================================
+# Main
+# =====================================================================
 def main():
     enable_dpi_awareness()
 
@@ -370,69 +374,195 @@ def main():
     recognizer.read(TRAINER_PATH)
 
     detector = cv2.CascadeClassifier(
-        cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+    )
+
     if detector.empty():
         print("[ERROR] Could not load Haar cascade.")
         sys.exit(1)
 
     cam = cv2.VideoCapture(CAMERA_INDEX)
+
     if not cam.isOpened():
         print(f"[ERROR] Cannot open camera index {CAMERA_INDEX}.")
         sys.exit(1)
 
     root = tk.Tk()
-    root.withdraw()                      # we only need the overlay window
+    root.withdraw()  # We only need the overlay window
+
     state = {"quit": False}
-    overlay = PrivacyOverlay(root, lambda: state.update(quit=True))
+
+    overlay = PrivacyOverlay(
+        root,
+        lambda: state.update(quit=True)
+    )
+
     tracker = AnomalyTracker()
 
+    # Prevent repeated Telegram alerts for the same event
+    telegram_alert_sent = False
+
     print("PrivAI running. Press Q in the camera window to exit.")
+
     try:
         while not state["quit"]:
+
+            # ---------------------------------------------------------
+            # Read camera frame
+            # ---------------------------------------------------------
             ok, frame = cam.read()
+
             if not ok:
                 print("[ERROR] Failed to read from camera.")
                 break
 
             now = time.time()
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces = detector.detectMultiScale(
-                gray, scaleFactor=1.2, minNeighbors=5,
-                minSize=(MIN_FACE_SIZE, MIN_FACE_SIZE))
 
-            user_present = False         # NEW: was the authorized user recognised?
+            # ---------------------------------------------------------
+            # Convert frame to grayscale
+            # ---------------------------------------------------------
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # ---------------------------------------------------------
+            # Detect faces
+            # ---------------------------------------------------------
+            faces = detector.detectMultiScale(
+                gray,
+                scaleFactor=1.2,
+                minNeighbors=5,
+                minSize=(MIN_FACE_SIZE, MIN_FACE_SIZE)
+            )
+
+            # ---------------------------------------------------------
+            # Face classification
+            # ---------------------------------------------------------
+            user_present = False
             unknown_present = False
+
             for (x, y, w, h) in faces:
-                is_user, conf = classify_face(recognizer, gray, (x, y, w, h))
+
+                is_user, conf = classify_face(
+                    recognizer,
+                    gray,
+                    (x, y, w, h)
+                )
+
                 if is_user:
                     label, color = "USER", GREEN
                     user_present = True
+
                 else:
                     label, color = "UNKNOWN", RED
                     unknown_present = True
-                cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(frame, f"{label} ({conf:.0f})", (x, max(y - 8, 12)),
-                            FONT, 0.6, color, 2)
 
-            # Empty frame => (False, False): "no person", handled by the absence
-            # timer. Stranger => unknown_present: handled by the anomaly timer.
-            if tracker.update(user_present, unknown_present, now):
+                cv2.rectangle(
+                    frame,
+                    (x, y),
+                    (x + w, y + h),
+                    color,
+                    2
+                )
+
+                cv2.putText(
+                    frame,
+                    f"{label} ({conf:.0f})",
+                    (x, max(y - 8, 12)),
+                    FONT,
+                    0.6,
+                    color,
+                    2
+                )
+
+            # ---------------------------------------------------------
+            # Update privacy tracker
+            # ---------------------------------------------------------
+            # Empty frame => (False, False): "no person"
+            # Stranger => unknown_present: handled by anomaly timer.
+
+            if tracker.update(
+                user_present,
+                unknown_present,
+                now
+            ):
                 overlay.show(tracker.lock_reason)
+
             else:
                 overlay.hide()
 
-            draw_ui(frame, len(faces), tracker, now)
-            cv2.imshow("PrivAI - Screen Privacy Guard", frame)
+            # ---------------------------------------------------------
+            # Telegram security alert
+            # ---------------------------------------------------------
+            # Send ONE alert when an unknown person is detected while
+            # privacy protection is active.
 
-            root.update()                # keep tkinter alive (no mainloop needed)
+            if (
+                tracker.privacy_on
+                and not user_present
+                and unknown_present
+                and not telegram_alert_sent
+            ):
+
+                message = (
+                    "🚨 PRIVAI SECURITY ALERT\n\n"
+                    "Unknown person detected while your laptop "
+                    "was protected.\n\n"
+                    "🔒 Screen protection: ACTIVE\n"
+                    "⚠️ Unknown person: DETECTED\n\n"
+                    "Please check your laptop."
+                )
+
+                if send_telegram_alert(message):
+                    telegram_alert_sent = True
+
+            # ---------------------------------------------------------
+            # Reset Telegram alert state
+            # ---------------------------------------------------------
+            # Allows a new alert when a separate unknown-person event
+            # happens later.
+
+            if not unknown_present:
+                telegram_alert_sent = False
+
+            # ---------------------------------------------------------
+            # Draw UI
+            # ---------------------------------------------------------
+            draw_ui(
+                frame,
+                len(faces),
+                tracker,
+                now
+            )
+
+            # ---------------------------------------------------------
+            # Show camera window
+            # ---------------------------------------------------------
+            cv2.imshow(
+                "PrivAI - Screen Privacy Guard",
+                frame
+            )
+
+            # Keep Tkinter alive
+            root.update()
+
+            # ---------------------------------------------------------
+            # Keyboard control
+            # ---------------------------------------------------------
             key = cv2.waitKey(1) & 0xFF
+
             if key in (ord("q"), ord("Q")):
                 break
+
     finally:
+
+        # -------------------------------------------------------------
+        # Cleanup
+        # -------------------------------------------------------------
         cam.release()
         cv2.destroyAllWindows()
+
         try:
             root.destroy()
+
         except tk.TclError:
             pass
 
