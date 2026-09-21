@@ -41,7 +41,7 @@ MY_ID = 1
 # are wrongly accepted as you.
 CONFIDENCE_THRESHOLD = 70
 
-ANOMALY_TIME = 2.0         # seconds an unknown face must stay before privacy mode
+ANOMALY_TIME = 5.0         # seconds an unknown face must stay before privacy mode
 RESTORE_DELAY = 1.0        # seconds the USER must be recognised (alone) before unlock
 UNKNOWN_LOSS_GRACE = 0.4   # tolerate brief detection dropouts while the timer runs
 
@@ -52,7 +52,6 @@ USER_ABSENCE_TIME = 5.0
 # While unlocking, a short gap (no face at all) up to this long does not
 # reset the RESTORE_DELAY countdown. An UNKNOWN face always resets it.
 USER_RETURN_GRACE = 0.5
-
 CAMERA_INDEX = 0
 MIN_FACE_SIZE = 60         # ignore faces smaller than this many pixels (filters noise)
 EMERGENCY_EXIT_KEY = "Control-Shift-Q"   # works while the overlay is showing
