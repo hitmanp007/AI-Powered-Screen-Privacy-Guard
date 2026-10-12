@@ -3,4 +3,4 @@
 /trainer
 telegram_alert.py
 telegram_test.py
-test_telegram_alarm.py
+test_telegram_alert.py
