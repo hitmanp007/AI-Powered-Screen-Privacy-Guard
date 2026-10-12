@@ -41,14 +41,14 @@ MY_ID = 1
 # are wrongly accepted as you.
 CONFIDENCE_THRESHOLD = 70
 
-ANOMALY_TIME = 5.0         # seconds an unknown face must stay before privacy mode
+ANOMALY_TIME = 2.0         # seconds an unknown face must stay before privacy mode
 RESTORE_DELAY = 1.0        # seconds the USER must be recognised (alone) before unlock
 UNKNOWN_LOSS_GRACE = 0.4   # tolerate brief detection dropouts while the timer runs
 
 # --- NEW: user-absence protection -----------------------------------
 # Seconds without a recognised USER face before the screen is locked.
 # Try 3.0 / 5.0 / 10.0 while testing.
-USER_ABSENCE_TIME = 5.0
+USER_ABSENCE_TIME = 3.0
 # While unlocking, a short gap (no face at all) up to this long does not
 # reset the RESTORE_DELAY countdown. An UNKNOWN face always resets it.
 USER_RETURN_GRACE = 0.5
